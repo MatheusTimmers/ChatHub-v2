@@ -22,9 +22,9 @@ class Socket {
         void openSocket(int port);
         void closeSocket();
 
-        int recvMessage(std::string& buffer);
-        int sendMessage(const std::string& buffer, const sockaddr_in* addr);
-        int sendBroadcast(const std::string&  buffer);
+        int recvMessage(std::string& msg, sockaddr_in* from);
+        int sendMessage(const std::string& msg, const sockaddr_in* addr);
+        int sendBroadcast(const std::string&  msg);
 
         int getSocketFd();
 };

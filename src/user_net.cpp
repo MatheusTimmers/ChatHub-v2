@@ -1,45 +1,67 @@
 #include "../include/user_net.hpp"
-#include <sstream>
-#include <thread>
 
-UserNet::UserNet(std::string name, int port) 
-    : name_(std::move(name)), port_(port)
-{}
+#include <iostream>
+#include <ostream>
+#include <string>
+
+UserNet::UserNet(std::string name, int port)
+    : name_(std::move(name)), port_(port), socket_(), device_manager_(), sender_(socket_),
+      receiver_(socket_, device_manager_, sender_), ui_() {
+    this->receiver_.setMessageHandler([this](const std::string& from, const std::string& text) {
+        this->ui_.displayMessage(from, text);
+    });
+}
 
 UserNet::~UserNet() {
     this->stop();
-}
-
-void UserNet::stop() {
-    this->running_ = false;
-    this->socket_.closeSocket();
 }
 
 void UserNet::start() {
     this->running_ = true;
     this->socket_.openSocket(this->port_);
 
-    // TODO: Passar para uma classe separada
-    this->sendHeartbeat();
+    this->sender_.start();
+    this->receiver_.start();
 
-    //std::thread(&UserNet::HandleMessage, this).detach();
-    // std::thread(&UserNet::UserInterfaceLoop, this).detach();
+    this->sender_.startHeartbeat(this->name_, HEARTBEAT_INTERVAL);
+    this->device_manager_.startCleanup(TIMEOUT_DEVICE, TIME_INACTIVE_DEVICE_LOOP);
 
-    // std::thread(&UserNet::HeartbeatLoop, this).detach();
-    std::thread(&UserNet::removeInactiveLoop, this).detach();
-
-    // std::thread(&UserNet::SendLoop, this).detach();
+    this->userInterfaceLoop();
+    this->stop();
 }
 
-void UserNet::removeInactiveLoop() {
+void UserNet::stop() {
+    this->running_ = false;
+    this->socket_.closeSocket();
+
+    this->sender_.stopHeartbeat();
+    this->device_manager_.stopCleanup();
+
+    this->receiver_.stop();
+    this->sender_.stop();
+}
+
+void UserNet::userInterfaceLoop() {
     while (this->running_) {
-        std::this_thread::sleep_for(std::chrono::seconds(TIME_INACTIVE_DEVICE_LOOP));
-        this->device_manager_.removeInactiveDevices();
+        Command cmd = this->ui_.readCommand();
+        switch (cmd.type) {
+        case CommandType::LIST_USERS:
+            this->ui_.displayDevices(this->device_manager_.listDevices());
+            break;
+        case CommandType::CHAT: {
+            this->sender_.sendTalk(cmd.text,
+                                   this->device_manager_.getDeviceInfoByName(cmd.target).addr);
+            break;
+        }
+        case CommandType::SEND_FILE:
+            this->sender_.sendFile(cmd.filePath,
+                                   this->device_manager_.getDeviceInfoByName(cmd.target).addr);
+            break;
+        case CommandType::EXIT:
+            this->running_ = false;
+            break;
+        default:
+            break;
+        }
     }
-}
-
-void UserNet::sendHeartbeat() {
-    std::ostringstream oss;
-    oss << "HEARTBEAT " << this->name_;
-    this->socket_.sendBroadcast(oss.str().c_str());
 }

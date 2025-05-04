@@ -1,9 +1,10 @@
-#include "../include/socket.hpp"
+#include "../../include/transport/socket.hpp"
 
 #include <arpa/inet.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -18,12 +19,12 @@ void Socket::openSocket(int port) {
         exit(EXIT_FAILURE);
     }
 
-    if (this->initBroadcast()) {
+    if (!this->initBroadcast()) {
         perror("Erro ao fazer init do broadcast.");
         exit(EXIT_FAILURE);
     }
 
-    if (this->bindSocket(port)) {
+    if (!this->bindSocket(port)) {
         perror("Erro ao fazer bind no servidor.");
         exit(EXIT_FAILURE);
     }
@@ -37,7 +38,6 @@ void Socket::closeSocket() {
 }
 
 bool Socket::bindSocket(int port) {
-    sockaddr_in addr;
     memset(&this->addr_, 0, sizeof(this->addr_));
     this->addr_.sin_family      = AF_INET;
     this->addr_.sin_port        = htons(port);
@@ -61,15 +61,15 @@ bool Socket::initBroadcast() {
     return true;
 }
 
-int Socket::sendBroadcast(const std::string& buffer) {
-    return this->sendMessage(buffer, &this->broadcastAddr_);
+int Socket::sendBroadcast(const std::string& msg) {
+    return this->sendMessage(msg, &this->broadcastAddr_);
 }
 
-int Socket::sendMessage(const std::string& buffer, const sockaddr_in* addr) {
+int Socket::sendMessage(const std::string& msg, const sockaddr_in* addr) {
     int                    n    = -1;
     const struct sockaddr* dest = reinterpret_cast<const struct sockaddr*>(addr);
 
-    n = sendto(sockfd, buffer.data(), buffer.size(), 0, dest, sizeof(sockaddr_in));
+    n = sendto(sockfd, &msg[0], msg.size(), 0, dest, sizeof(sockaddr_in));
     if (n < 0) {
         perror("Erro ao enviar mensagem");
         return -1;
@@ -78,13 +78,18 @@ int Socket::sendMessage(const std::string& buffer, const sockaddr_in* addr) {
     return n;
 }
 
-int Socket::recvMessage(std::string& buffer) {
-    socklen_t        addr_len = sizeof(this->addr_);
-    struct sockaddr* dest     = reinterpret_cast<struct sockaddr*>(&this->addr_);
+int Socket::recvMessage(std::string& msg, sockaddr_in* from) {
+    socklen_t        addr_len = sizeof(sockaddr_in);
+    struct sockaddr* dest     = reinterpret_cast<struct sockaddr*>(from);
 
-    buffer.resize(BUFFER_SIZE);
-    int n = recvfrom(this->sockfd, buffer.data(), BUFFER_SIZE, 0, dest, &addr_len);
-    buffer.resize(n);
+    msg.resize(BUFFER_SIZE);
+    int n = recvfrom(this->sockfd, &msg[0], BUFFER_SIZE, 0, dest, &addr_len);
+
+    if (n > 0) {
+        msg.resize(n);
+    } else {
+        msg.clear();
+    }
 
     return 0;
 }
