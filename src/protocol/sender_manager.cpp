@@ -1,11 +1,13 @@
 #include "../../include/protocol/sender_manager.hpp"
+#include "../../include/utils/file_utils.hpp"
 
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <iterator>
+#include <mutex>
 #include <netinet/in.h>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -28,7 +30,7 @@ void SenderManager::stop() {
 
 void SenderManager::sendHeartbeat(const std::string& myName) {
     std::string buf = "HEARTBEAT " + myName;
-    
+
     this->sendBroadcast(buf);
 }
 
@@ -82,8 +84,10 @@ void SenderManager::sendFile(const std::string& filePath, const sockaddr_in& to)
     else
         file_name = filePath;
 
-    std::string fileCmd = "FILE " + std::to_string(id) + " " + file_name.c_str() + " " +
-                          std::to_string(file_size);
+    std::string fileCmd =
+        "FILE " + std::to_string(id) + " " + file_name.c_str() + " " + std::to_string(file_size);
+
+    std::clog << fileCmd << std::endl;
 
     this->sendTo(fileCmd, to);
     this->addPending(id, fileCmd, to);
@@ -115,13 +119,18 @@ void SenderManager::processFileSend(PendingFile pf) {
         std::string chunkCmd =
             "CHUNK " + std::to_string(id) + " " + std::to_string(seq) + " " + data;
 
+        std::clog << chunkCmd << std::endl;
+
         this->sendTo(chunkCmd, pf.to);
         this->addPending(id, chunkCmd, pf.to);
+
         seq++;
         id = nextId();
     }
 
-    std::string endCmd = "END " + std::to_string(nextId());
+    std::string fileHash = computeSHA256(pf.filePath);
+
+    std::string endCmd = "END " + std::to_string(nextId()) + " " + fileHash;
     this->sendTo(endCmd, pf.to);
     this->addPending(id, endCmd, pf.to);
 
@@ -129,8 +138,12 @@ void SenderManager::processFileSend(PendingFile pf) {
 }
 
 void SenderManager::handleAck(uint32_t id) {
-    this->pendingMap_.erase(id);
+    {
+        std::lock_guard<std::mutex> lk(this->pendingMtx_);
+        this->pendingMap_.erase(id);
+    }
 
+    // TODO: Isso aqui deveria ter um mutex
     auto itFile = this->pendingFile_.find(id);
     if (itFile != this->pendingFile_.end()) {
         this->processFileSend(itFile->second);
@@ -141,30 +154,35 @@ void SenderManager::handleAck(uint32_t id) {
 }
 
 void SenderManager::handleNack(uint32_t id) {
-    auto it = this->pendingMap_.find(id);
+    std::lock_guard<std::mutex> lk(this->pendingMtx_);
+    auto                        it = this->pendingMap_.find(id);
     if (it != this->pendingMap_.end())
         this->sendTo(it->second.buf, it->second.to);
 }
 
 void SenderManager::retryLoop() {
     while (this->running_) {
-        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        for (auto it = this->pendingMap_.begin(); it != this->pendingMap_.end();) {
-            auto& p = it->second;
-            if (now - p.lastSent > TIMEOUT) {
-                if (p.retries < MAX_RETRY) {
-                    sendTo(p.buf, p.to);
-                    p.lastSent = now;
-                    p.retries++;
-                    ++it;
+        auto now = std::time(nullptr);
+        {
+            std::lock_guard<std::mutex> lk(this->pendingMtx_);
+            for (auto it = this->pendingMap_.begin(); it != this->pendingMap_.end();) {
+                auto& p = it->second;
+                if (now - p.lastSent > TIMEOUT) {
+                    if (p.retries < MAX_RETRY) {
+                        sendTo(p.buf, p.to);
+                        p.lastSent = now;
+                        p.retries++;
+                        ++it;
+                    } else {
+                        // excedeu retries, desiste
+                        std::clog << "[SenderManager] WARNING: packet id=" << it->first
+                                  << " data=" << it->second.buf << " reached max retries ("
+                                  << MAX_RETRY << "), giving up\n";
+                        it = pendingMap_.erase(it);
+                    }
                 } else {
-                    // excedeu retries, desiste
-                    std::clog << "[SenderManager] WARNING: packet id=" << it->first
-                              << " reached max retries (" << MAX_RETRY << "), giving up\n";
-                    it = pendingMap_.erase(it);
+                    ++it;
                 }
-            } else {
-                ++it;
             }
         }
         std::this_thread::sleep_for(std::chrono::seconds(TIMEOUT));
@@ -180,8 +198,9 @@ void SenderManager::sendBroadcast(const std::string& buf) {
 }
 
 void SenderManager::addPending(uint32_t id, const std::string& buf, const sockaddr_in& to) {
-    auto now              = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    this->pendingMap_[id] = Pending{buf, 0, to, now};
+    std::lock_guard<std::mutex> lk(this->pendingMtx_);
+    auto                        now = std::time(nullptr);
+    this->pendingMap_[id]           = Pending{buf, 0, to, now};
 }
 
 void SenderManager::startHeartbeat(const std::string& name, int intervalSec) {

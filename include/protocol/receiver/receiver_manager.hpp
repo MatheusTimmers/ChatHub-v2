@@ -40,4 +40,6 @@ class ReceiverManager {
     void onFile(const Message& msg);
     void onChunk(const Message& msg);
     void onEnd(const Message& msg);
+    void onAck(const Message& msg);
+    void onNack(const Message& msg);
 };

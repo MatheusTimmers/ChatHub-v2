@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <netinet/in.h>
+#include <ostream>
 #include <string>
 
 ReceiverManager::ReceiverManager(Socket& sock, DeviceManager& dm, SenderManager& sender)
@@ -57,6 +58,12 @@ void ReceiverManager::receiveBroadcastLoop() {
         int n = this->socket_.recvBroadcast(buf, &from);
         if (n <= 0)
             continue;
+
+        sockaddr_in addr = this->socket_.getAddres();
+        if (from.sin_addr.s_addr == addr.sin_addr.s_addr && from.sin_port == addr.sin_port) {
+            continue;
+        }
+
         Message msg = buildMessage(MessageType::HEARTBEAT, buf, from);
         this->onHeartbeat(msg);
     }
@@ -80,10 +87,10 @@ void ReceiverManager::handle(const Message& msg) {
         this->onEnd(msg);
         break;
     case MessageType::ACK:
-        this->sender_.handleAck(msg.id);
+        this->onAck(msg);
         break;
     case MessageType::NACK:
-        this->sender_.handleNack(msg.id);
+        this->onNack(msg);
         break;
     default:
         break;
@@ -96,11 +103,7 @@ void ReceiverManager::onHeartbeat(const Message& msg) {
         return;
     }
 
-    char ipstr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &msg.from.sin_addr, ipstr, sizeof(ipstr));
-    uint16_t port = ntohs(msg.from.sin_port);
-
-    this->device_manager_.addOrUpdate(hb.name, ipstr, port);
+    this->device_manager_.addOrUpdate(hb.name, msg.from);
     this->sender_.sendAck(msg.id, msg.from);
 }
 
@@ -135,6 +138,7 @@ void ReceiverManager::onChunk(const Message& msg) {
     }
 
     std::string name = this->device_manager_.getNameByAddr(msg.from);
+    std::clog << cm.id << " " << cm.seq << " " << cm.data << std::endl;
     this->file_receiver_.writeChunk(name, cm.seq, cm.data);
     this->sender_.sendAck(cm.id, msg.from);
 }
@@ -145,7 +149,37 @@ void ReceiverManager::onEnd(const Message& msg) {
         return;
     }
 
+    std::string error;
     std::string name = this->device_manager_.getNameByAddr(msg.from);
-    this->file_receiver_.finishReceive(name);
+    if (!this->file_receiver_.finishReceive(name, em.hash, error)) {
+        this->sender_.sendNack(em.id, error, msg.from);
+        return;
+    }
+
+    if (this->messageHandler_)
+        this->messageHandler_(name, "Enviou um arquivo para você");
+
     this->sender_.sendAck(em.id, msg.from);
+}
+
+void ReceiverManager::onAck(const Message& msg) {
+    AckMsg ack{};
+    if (!MessageParser::parseAck(msg.payload, ack)) {
+        return;
+    }
+
+    this->sender_.handleAck(ack.id);
+}
+
+void ReceiverManager::onNack(const Message& msg) {
+    NackMsg nack{};
+    if (!MessageParser::parseNack(msg.payload, nack)) {
+        return;
+    }
+
+    std::string name = this->device_manager_.getNameByAddr(msg.from);
+    if (this->messageHandler_)
+        this->messageHandler_(name, nack.reason);
+
+    this->sender_.handleNack(nack.id);
 }

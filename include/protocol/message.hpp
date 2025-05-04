@@ -43,5 +43,6 @@ inline Message buildMessage(MessageType type, const std::string& buf, sockaddr_i
     msg.type        = type;
     msg.from        = from;
     msg.payload     = buf;
+    msg.id          = 0;
     return msg;
 }

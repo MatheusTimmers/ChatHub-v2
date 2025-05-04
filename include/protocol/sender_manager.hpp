@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <netinet/in.h>
 #include <string>
 #include <sys/types.h>
@@ -54,10 +55,11 @@ class SenderManager {
 
     std::atomic<bool> heartbeatRunning_{false};
     std::thread       heartbeatThread_;
+    std::mutex        pendingMtx_;
 
-    std::uint32_t nextId_;
+    std::uint32_t nextId_{1};
 
-    std::unordered_map<uint32_t, Pending> pendingMap_;
+    std::unordered_map<uint32_t, Pending>     pendingMap_;
     std::unordered_map<uint32_t, PendingFile> pendingFile_;
 
     uint32_t nextId();

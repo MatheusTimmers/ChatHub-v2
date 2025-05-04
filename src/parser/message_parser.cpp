@@ -47,8 +47,18 @@ bool parseChunk(const std::string& msg, ChunkMsg& out) {
     std::string        type;
     if (!(iss >> type) || type != "CHUNK")
         return false;
-    if (!(iss >> out.id >> out.seq >> out.data))
+
+    if (!(iss >> out.id)) {
         return false;
+    }
+
+    if (!(iss >> out.seq)) {
+        return false;
+    }
+
+    std::getline(iss, out.data);
+    if (!out.data.empty() && out.data.front() == ' ')
+        out.data.erase(0, 1);
     return true;
 }
 

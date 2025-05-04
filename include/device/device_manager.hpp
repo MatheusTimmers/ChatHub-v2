@@ -20,6 +20,8 @@ struct DeviceInfo {
 
 class DeviceManager {
   private:
+    std::string name_;
+
     std::unordered_map<std::string, DeviceInfo>  devices_;
     std::unordered_map<std::string, std::string> devicesByAddr_;
     mutable std::mutex                           mutex_;
@@ -30,7 +32,8 @@ class DeviceManager {
     std::thread       cleanupThread_;
 
   public:
-    void addOrUpdate(const std::string& name, const std::string& ip, uint16_t port);
+    DeviceManager(const std::string& name);
+    void addOrUpdate(const std::string& name, const sockaddr_in& from);
 
     std::string getNameByAddr(const sockaddr_in& addr);
     DeviceInfo getDeviceInfoByName(const std::string& name);

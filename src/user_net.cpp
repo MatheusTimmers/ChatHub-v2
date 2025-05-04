@@ -6,7 +6,7 @@
 #include <utility>
 
 UserNet::UserNet(const std::string& name, const std::string& ip, uint16_t port)
-    : name_(std::move(name)), ip_(std::move(ip)), port_(port), socket_(), device_manager_(),
+    : name_(std::move(name)), ip_(std::move(ip)), port_(port), socket_(), device_manager_(name),
       sender_(socket_), receiver_(socket_, device_manager_, sender_), ui_() {
     this->receiver_.setMessageHandler([this](const std::string& from, const std::string& text) {
         this->ui_.displayMessage(from, text);
@@ -26,7 +26,6 @@ void UserNet::start() {
 
     this->sender_.startHeartbeat(this->name_, HEARTBEAT_INTERVAL);
     this->device_manager_.startCleanup(TIMEOUT_DEVICE, TIME_INACTIVE_DEVICE_LOOP);
-
     this->userInterfaceLoop();
     this->stop();
 }

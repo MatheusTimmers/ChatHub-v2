@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+DeviceManager::DeviceManager(const std::string& name) : name_(std::move(name)) {}
+
 void DeviceManager::startCleanup(int timeout, int interval) {
     if (this->cleanupRunning_)
         return;
@@ -40,21 +42,22 @@ void DeviceManager::removeInactiveDevices(int timeout, int interval) {
     }
 }
 
-void DeviceManager::addOrUpdate(const std::string& name, const std::string& ip, uint16_t port) {
+void DeviceManager::addOrUpdate(const std::string& name, const sockaddr_in& from) {
     std::lock_guard<std::mutex> lock(this->mutex_);
-    std::string                 key = ip + ":" + std::to_string(port);
+
+    // testa se nao ta adicionando ele mesmo
+    if (name == this->name_)
+        return;
+
     std::time_t                 now = std::time(nullptr);
 
-    // NOTE: Isso tinha que ser feito pelo socket, deveriamos controlar apenas o ip e porta
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port   = htons(port);
-    if (inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) != 1) {
-        std::clog << "[DeviceManager] Error: IP inválido `" << ip << "` para o dispositivo `"
-                  << name << "`\n";
-    }
+    char ipstr[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &from.sin_addr, ipstr, sizeof(ipstr));
+    uint16_t port = ntohs(from.sin_port);
 
-    this->devices_[name]      = DeviceInfo{name, ip, port, addr, now};
+    std::string key = std::string(ipstr) + ":" + std::to_string(port);
+
+    this->devices_[name]      = DeviceInfo{name, ipstr, port, from, now};
     this->devicesByAddr_[key] = name;
 }
 

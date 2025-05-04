@@ -1,5 +1,6 @@
 CXX       := g++
 CXXFLAGS  := -std=c++11 -Wall -Iinclude
+LDFLAGS   := -lcrypto -pthread
 
 SRC_DIR   := src
 OBJ_DIR   := build

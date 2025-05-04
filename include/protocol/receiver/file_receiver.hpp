@@ -12,9 +12,9 @@ struct FileReceiveContext {
 
 class FileReceiver {
   public:
-    void startReceive(std::string fileId, const std::string& filename);
-    void writeChunk(std::string fileId, uint32_t seq, const std::string& data);
-    bool finishReceive(std::string fileId);
+    void startReceive(const std::string& fileId, const std::string& filename);
+    void writeChunk(const std::string& fileId, uint32_t seq, const std::string& data);
+    bool finishReceive(const std::string& fileId, const std::string& hash, std::string& error);
 
   private:
     std::unordered_map<std::string, FileReceiveContext> contexts_;

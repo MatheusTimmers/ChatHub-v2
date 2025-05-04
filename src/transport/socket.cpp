@@ -184,3 +184,7 @@ std::string Socket::getLocalIp() {
     close(sock);
     return std::string(buf);
 }
+
+sockaddr_in Socket::getAddres() {
+    return this->addr_;
+}

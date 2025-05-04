@@ -31,4 +31,5 @@ class Socket {
 
     int         getSocketFd();
     std::string getLocalIp();
+    sockaddr_in getAddres();
 };
