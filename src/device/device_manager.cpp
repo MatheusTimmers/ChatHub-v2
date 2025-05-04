@@ -43,7 +43,7 @@ void DeviceManager::removeInactiveDevices(int timeout, int interval) {
 void DeviceManager::addOrUpdate(const std::string& name, const std::string& ip, uint16_t port) {
     std::lock_guard<std::mutex> lock(this->mutex_);
     std::string                 key = ip + ":" + std::to_string(port);
-    auto                        now = std::time(nullptr);
+    std::time_t                 now = std::time(nullptr);
 
     // NOTE: Isso tinha que ser feito pelo socket, deveriamos controlar apenas o ip e porta
     sockaddr_in addr{};
@@ -63,7 +63,7 @@ std::vector<DeviceInfo> DeviceManager::listDevices() const {
     {
         std::lock_guard<std::mutex> lock(this->mutex_);
         result.reserve(devices_.size());
-        for (auto it = devices_.begin(); it != devices_.end();) {
+        for (auto it = devices_.begin(); it != devices_.end(); it++) {
             result.push_back(it->second);
         }
     }

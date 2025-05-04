@@ -2,9 +2,9 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <netinet/in.h>
 #include <string>
 #include <vector>
@@ -28,6 +28,7 @@ void SenderManager::stop() {
 
 void SenderManager::sendHeartbeat(const std::string& myName) {
     std::string buf = "HEARTBEAT " + myName;
+    
     this->sendBroadcast(buf);
 }
 

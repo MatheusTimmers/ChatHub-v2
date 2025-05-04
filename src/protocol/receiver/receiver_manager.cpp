@@ -3,6 +3,7 @@
 #include "../../../include/parser/message_parser.hpp"
 
 #include <arpa/inet.h>
+#include <iostream>
 #include <netinet/in.h>
 #include <string>
 
@@ -10,19 +11,23 @@ ReceiverManager::ReceiverManager(Socket& sock, DeviceManager& dm, SenderManager&
     : socket_(sock), device_manager_(dm), sender_(sender), running_(false) {}
 
 ReceiverManager::~ReceiverManager() {
-    stop();
+    this->stop();
 }
 
 void ReceiverManager::start() {
-    running_    = true;
-    recvThread_ = std::thread(&ReceiverManager::receiveLoop, this);
+    this->running_             = true;
+    this->recvThread_          = std::thread(&ReceiverManager::receiveLoop, this);
+    this->recvBroadcastThread_ = std::thread(&ReceiverManager::receiveBroadcastLoop, this);
 }
 
 void ReceiverManager::stop() {
-    running_ = false;
+    this->running_ = false;
 
-    if (recvThread_.joinable())
-        recvThread_.join();
+    if (this->recvThread_.joinable())
+        this->recvThread_.join();
+
+    if (this->recvBroadcastThread_.joinable())
+        this->recvBroadcastThread_.join();
 }
 
 void ReceiverManager::setMessageHandler(
@@ -31,15 +36,29 @@ void ReceiverManager::setMessageHandler(
 }
 
 void ReceiverManager::receiveLoop() {
-    while (running_) {
+    while (this->running_) {
         std::string buf;
         sockaddr_in from{};
-        int         n = socket_.recvMessage(buf, &from);
+
+        int n = this->socket_.recvMessage(buf, &from);
         if (n <= 0)
             continue;
         auto    type = identifyType(buf);
         Message msg  = buildMessage(type, buf, from);
-        handle(msg);
+        this->handle(msg);
+    }
+}
+
+void ReceiverManager::receiveBroadcastLoop() {
+    while (this->running_) {
+        std::string buf;
+        sockaddr_in from{};
+
+        int n = this->socket_.recvBroadcast(buf, &from);
+        if (n <= 0)
+            continue;
+        Message msg = buildMessage(MessageType::HEARTBEAT, buf, from);
+        this->onHeartbeat(msg);
     }
 }
 

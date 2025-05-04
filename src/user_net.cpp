@@ -1,12 +1,13 @@
 #include "../include/user_net.hpp"
 
+#include <cstdint>
 #include <iostream>
-#include <ostream>
 #include <string>
+#include <utility>
 
-UserNet::UserNet(std::string name, int port)
-    : name_(std::move(name)), port_(port), socket_(), device_manager_(), sender_(socket_),
-      receiver_(socket_, device_manager_, sender_), ui_() {
+UserNet::UserNet(const std::string& name, const std::string& ip, uint16_t port)
+    : name_(std::move(name)), ip_(std::move(ip)), port_(port), socket_(), device_manager_(),
+      sender_(socket_), receiver_(socket_, device_manager_, sender_), ui_() {
     this->receiver_.setMessageHandler([this](const std::string& from, const std::string& text) {
         this->ui_.displayMessage(from, text);
     });
@@ -18,7 +19,7 @@ UserNet::~UserNet() {
 
 void UserNet::start() {
     this->running_ = true;
-    this->socket_.openSocket(this->port_);
+    this->socket_.openSocket(this->ip_, this->port_);
 
     this->sender_.start();
     this->receiver_.start();

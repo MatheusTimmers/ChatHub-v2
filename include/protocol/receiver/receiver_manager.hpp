@@ -27,9 +27,10 @@ class ReceiverManager {
     SenderManager&    sender_;
     FileReceiver      file_receiver_;
     std::atomic<bool> running_;
-    std::thread       recvThread_;
+    std::thread       recvThread_, recvBroadcastThread_;
 
     void receiveLoop();
+    void receiveBroadcastLoop();
     void handle(const Message& msg);
 
     std::function<void(const std::string&, const std::string&)> messageHandler_;

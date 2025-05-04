@@ -7,6 +7,7 @@
 #include "ui/user_interface.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 
 #define TIME_INACTIVE_DEVICE_LOOP 5 // seconds
@@ -15,7 +16,7 @@
 
 class UserNet {
   public:
-    UserNet(std::string name, int port);
+    UserNet(const std::string& name, const std::string& ip, uint16_t port);
     ~UserNet();
     void start();
     void stop();
@@ -24,7 +25,8 @@ class UserNet {
     std::atomic<bool> running_{false};
 
     std::string name_;
-    int         port_;
+    std::string ip_;
+    uint16_t    port_;
     Socket      socket_;
 
     DeviceManager   device_manager_;
