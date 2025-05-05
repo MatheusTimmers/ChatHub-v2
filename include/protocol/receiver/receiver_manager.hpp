@@ -29,6 +29,9 @@ class ReceiverManager {
     std::atomic<bool> running_;
     std::thread       recvThread_, recvBroadcastThread_;
 
+    std::unordered_map<std::string, uint32_t> lastProcessedId_;
+    std::mutex                                lastIdMtx_;
+
     void receiveLoop();
     void receiveBroadcastLoop();
     void handle(const Message& msg);

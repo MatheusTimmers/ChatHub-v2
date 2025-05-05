@@ -12,7 +12,7 @@
 #include <unordered_map>
 
 #define CHUNK_SIZE 128
-#define TIMEOUT 2
+#define TIMEOUT 5
 #define MAX_RETRY 5
 
 class SenderManager {

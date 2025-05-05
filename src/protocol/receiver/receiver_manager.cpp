@@ -1,6 +1,7 @@
 #include "../../../include/protocol/receiver/receiver_manager.hpp"
 
 #include "../../../include/parser/message_parser.hpp"
+#include "../../../include/utils/utils.hpp"
 
 #include <arpa/inet.h>
 #include <iostream>
@@ -70,6 +71,19 @@ void ReceiverManager::receiveBroadcastLoop() {
 }
 
 void ReceiverManager::handle(const Message& msg) {
+    std::string key = peerKey(msg.from);
+    {
+        std::lock_guard<std::mutex> lk(this->lastIdMtx_);
+        auto it = lastProcessedId_.find(key);
+
+        // TODO: Não funciona 100%
+        if (it != lastProcessedId_.end() && msg.id < it->second) {
+            // Já recebemos
+            return;
+        }
+        lastProcessedId_[key] = msg.id;
+    }
+
     switch (msg.type) {
     case MessageType::HEARTBEAT:
         this->onHeartbeat(msg);

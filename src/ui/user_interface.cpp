@@ -44,9 +44,12 @@ void UserInterface::displayDevices(const std::vector<DeviceInfo>& users) {
         std::cout << "Voce esta sozinho. Nao tem ninguem aqui 🦗" << std::endl;
     } else {
         std::cout << "Usuarios ativos:" << std::endl;
+        auto now = std::chrono::system_clock::now();
         for (auto& u : users) {
-            std::cout << u.name << " @ " << u.ip << ":" << u.port << " LastAlive: " << u.last_alive
-                      << std::endl;
+            auto then = std::chrono::system_clock::from_time_t(u.last_alive);
+            auto secs = std::chrono::duration_cast<std::chrono::seconds>(now - then).count();
+            std::cout << u.name << " @ " << u.ip << ":" << u.port << " – LastAlive: há " << secs
+                      << " seg " << std::endl;
         }
     }
 }

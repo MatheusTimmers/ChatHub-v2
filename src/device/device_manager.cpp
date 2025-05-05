@@ -1,9 +1,9 @@
 #include "../../include/device/device_manager.hpp"
+#include "../../include/utils/utils.hpp"
 
 #include <algorithm>
 #include <arpa/inet.h>
 #include <cstdint>
-#include <iostream>
 #include <mutex>
 #include <netinet/in.h>
 #include <string>
@@ -79,10 +79,7 @@ std::vector<DeviceInfo> DeviceManager::listDevices() const {
 
 std::string DeviceManager::getNameByAddr(const sockaddr_in& addr) {
     char ipstr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &addr.sin_addr, ipstr, sizeof(ipstr));
-    uint16_t port = ntohs(addr.sin_port);
-
-    std::string key = std::string(ipstr) + ":" + std::to_string(port);
+    std::string key = peerKey(addr);
 
     auto it = devicesByAddr_.find(key);
     if (it != devicesByAddr_.end()) {
