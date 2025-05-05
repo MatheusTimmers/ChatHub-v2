@@ -138,7 +138,6 @@ void ReceiverManager::onChunk(const Message& msg) {
     }
 
     std::string name = this->device_manager_.getNameByAddr(msg.from);
-    std::clog << cm.id << " " << cm.seq << " " << cm.data << std::endl;
     this->file_receiver_.writeChunk(name, cm.seq, cm.data);
     this->sender_.sendAck(cm.id, msg.from);
 }

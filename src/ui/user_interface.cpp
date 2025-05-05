@@ -53,4 +53,6 @@ void UserInterface::displayDevices(const std::vector<DeviceInfo>& users) {
 
 void UserInterface::displayMessage(const std::string& from, const std::string& msg) {
     std::cout << from << ": " << msg << std::endl;
+    std::cout << ">> ";
+    std::cout << std::flush;
 }

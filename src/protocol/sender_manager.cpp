@@ -1,4 +1,5 @@
 #include "../../include/protocol/sender_manager.hpp"
+
 #include "../../include/utils/file_utils.hpp"
 
 #include <cstdint>
@@ -87,8 +88,6 @@ void SenderManager::sendFile(const std::string& filePath, const sockaddr_in& to)
     std::string fileCmd =
         "FILE " + std::to_string(id) + " " + file_name.c_str() + " " + std::to_string(file_size);
 
-    std::clog << fileCmd << std::endl;
-
     this->sendTo(fileCmd, to);
     this->addPending(id, fileCmd, to);
 
@@ -119,8 +118,6 @@ void SenderManager::processFileSend(PendingFile pf) {
         std::string chunkCmd =
             "CHUNK " + std::to_string(id) + " " + std::to_string(seq) + " " + data;
 
-        std::clog << chunkCmd << std::endl;
-
         this->sendTo(chunkCmd, pf.to);
         this->addPending(id, chunkCmd, pf.to);
 
@@ -130,7 +127,7 @@ void SenderManager::processFileSend(PendingFile pf) {
 
     std::string fileHash = computeSHA256(pf.filePath);
 
-    std::string endCmd = "END " + std::to_string(nextId()) + " " + fileHash;
+    std::string endCmd = "END " + std::to_string(id) + " " + fileHash;
     this->sendTo(endCmd, pf.to);
     this->addPending(id, endCmd, pf.to);
 

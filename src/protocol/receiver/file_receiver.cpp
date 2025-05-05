@@ -29,7 +29,7 @@ bool FileReceiver::finishReceive(const std::string& fileId, const std::string& h
               [](const std::pair<uint32_t, std::string>& a,
                  const std::pair<uint32_t, std::string>& b) { return a.first < b.first; });
 
-    std::ofstream file("twteste.txt", std::ios::binary);
+    std::ofstream file(ctx.filename, std::ios::binary);
 
     if (!file) {
         std::cerr << "[FileReceiver] Erro ao abrir arquivo para escrita: " << ctx.filename
@@ -45,16 +45,16 @@ bool FileReceiver::finishReceive(const std::string& fileId, const std::string& h
     file.put('\n');
     file.close();
 
-    std::string actualHash = computeSHA256("twteste.txt");
+    std::string actualHash = computeSHA256(ctx.filename);
     if (actualHash != hash) {
         std::cerr << "[FileReceiver] checksum mismatch: expected " << hash << " but got "
                   << actualHash << "\n";
 
         error = "Dados foram corrompidos";
 
-        //if (std::remove(ctx.filename.c_str()) != 0) {
-        //    std::perror("[FileReceiver] falha ao deletar arquivo corrompido");
-        //}
+        if (std::remove(ctx.filename.c_str()) != 0) {
+            std::perror("[FileReceiver] falha ao deletar arquivo corrompido");
+        }
 
         // não apaga o contexto que ele vai tentar enviar de novo
         return false;
