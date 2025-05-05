@@ -42,7 +42,6 @@ bool FileReceiver::finishReceive(const std::string& fileId, const std::string& h
     for (auto& p : ctx.chunks) {
         file.write(p.second.data(), p.second.size());
     }
-    file.put('\n');
     file.close();
 
     std::string actualHash = computeSHA256(ctx.filename);

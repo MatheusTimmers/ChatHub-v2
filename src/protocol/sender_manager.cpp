@@ -151,10 +151,17 @@ void SenderManager::handleAck(uint32_t id) {
 }
 
 void SenderManager::handleNack(uint32_t id) {
-    std::lock_guard<std::mutex> lk(this->pendingMtx_);
-    auto                        it = this->pendingMap_.find(id);
-    if (it != this->pendingMap_.end())
-        this->sendTo(it->second.buf, it->second.to);
+    {
+        std::lock_guard<std::mutex> lk(this->pendingMtx_);
+        this->pendingMap_.erase(id);
+    }
+
+    // TODO: Isso aqui deveria ter um mutex
+    auto itFile = this->pendingFile_.find(id);
+    if (itFile != this->pendingFile_.end()) {
+        this->pendingFile_.erase(itFile);
+        return;
+    }
 }
 
 void SenderManager::retryLoop() {

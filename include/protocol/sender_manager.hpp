@@ -11,7 +11,7 @@
 #include <thread>
 #include <unordered_map>
 
-#define CHUNK_SIZE 1024
+#define CHUNK_SIZE 128
 #define TIMEOUT 2
 #define MAX_RETRY 5
 

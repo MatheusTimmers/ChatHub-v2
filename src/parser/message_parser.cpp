@@ -1,5 +1,6 @@
 #include "../../include/parser/message_parser.hpp"
 
+#include <iostream>
 #include <netinet/in.h>
 #include <sstream>
 
@@ -56,7 +57,7 @@ bool parseChunk(const std::string& msg, ChunkMsg& out) {
         return false;
     }
 
-    std::getline(iss, out.data);
+    std::getline(iss, out.data, '\0');
     if (!out.data.empty() && out.data.front() == ' ')
         out.data.erase(0, 1);
     return true;

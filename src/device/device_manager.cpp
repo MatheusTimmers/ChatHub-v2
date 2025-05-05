@@ -45,7 +45,7 @@ void DeviceManager::removeInactiveDevices(int timeout, int interval) {
 void DeviceManager::addOrUpdate(const std::string& name, const sockaddr_in& from) {
     std::lock_guard<std::mutex> lock(this->mutex_);
 
-    // testa se nao ta adicionando ele mesmo
+    // Verifica se nao ta adicionando ele mesmo
     if (name == this->name_)
         return;
 
