@@ -4,6 +4,7 @@
 #include "../../../include/utils/utils.hpp"
 
 #include <arpa/inet.h>
+#include <cstdint>
 #include <iostream>
 #include <netinet/in.h>
 #include <ostream>
@@ -71,19 +72,6 @@ void ReceiverManager::receiveBroadcastLoop() {
 }
 
 void ReceiverManager::handle(const Message& msg) {
-    std::string key = peerKey(msg.from);
-    {
-        std::lock_guard<std::mutex> lk(this->lastIdMtx_);
-        auto it = lastProcessedId_.find(key);
-
-        // TODO: Não funciona 100%
-        if (it != lastProcessedId_.end() && msg.id < it->second) {
-            // Já recebemos
-            return;
-        }
-        lastProcessedId_[key] = msg.id;
-    }
-
     switch (msg.type) {
     case MessageType::HEARTBEAT:
         this->onHeartbeat(msg);
@@ -127,6 +115,12 @@ void ReceiverManager::onTalk(const Message& msg) {
         return;
     }
 
+    if (this->isDuplicateMessage(tk.id, msg.from)) {
+        std::clog << "teste " << std::endl;
+        this->sender_.sendNack(tk.id, "Mensagem duplicada", msg.from);
+        return;
+    }
+
     std::string name = this->device_manager_.getNameByAddr(msg.from);
     if (this->messageHandler_)
         this->messageHandler_(name, tk.data);
@@ -137,6 +131,11 @@ void ReceiverManager::onTalk(const Message& msg) {
 void ReceiverManager::onFile(const Message& msg) {
     FileMsg fm{};
     if (!MessageParser::parseFile(msg.payload, fm)) {
+        return;
+    }
+
+    if (this->isDuplicateMessage(fm.id, msg.from)) {
+        this->sender_.sendNack(fm.id, "Mensagem duplicada", msg.from);
         return;
     }
 
@@ -151,6 +150,11 @@ void ReceiverManager::onChunk(const Message& msg) {
         return;
     }
 
+    if (this->isDuplicateMessage(cm.id, msg.from)) {
+        this->sender_.sendNack(cm.id, "Mensagem duplicada", msg.from);
+        return;
+    }
+
     std::string name = this->device_manager_.getNameByAddr(msg.from);
     this->file_receiver_.writeChunk(name, cm.seq, cm.data);
     this->sender_.sendAck(cm.id, msg.from);
@@ -159,6 +163,11 @@ void ReceiverManager::onChunk(const Message& msg) {
 void ReceiverManager::onEnd(const Message& msg) {
     EndMsg em{};
     if (!MessageParser::parseEnd(msg.payload, em)) {
+        return;
+    }
+
+    if (this->isDuplicateMessage(em.id, msg.from)) {
+        this->sender_.sendNack(em.id, "Mensagem duplicada", msg.from);
         return;
     }
 
@@ -190,9 +199,29 @@ void ReceiverManager::onNack(const Message& msg) {
         return;
     }
 
+    if (this->isDuplicateMessage(nack.id, msg.from)) {
+        this->sender_.sendNack(nack.id, "Mensagem duplicada", msg.from);
+        return;
+    }
+
     std::string name = this->device_manager_.getNameByAddr(msg.from);
     if (this->messageHandler_)
         this->messageHandler_(name, nack.reason);
 
     this->sender_.handleNack(nack.id);
+}
+
+bool ReceiverManager::isDuplicateMessage(uint32_t id, const sockaddr_in& addr) {
+    std::lock_guard<std::mutex> lk(this->idMtx_);
+
+    std::string name = this->device_manager_.getNameByAddr(addr);
+    DeviceInfo di = this->device_manager_.getDeviceInfoByName(name);
+
+    auto it = di.received_ids.find(id);
+    if (it != di.received_ids.end()) {
+            return true;
+    }
+    di.received_ids.insert(id);
+    
+    return false;
 }

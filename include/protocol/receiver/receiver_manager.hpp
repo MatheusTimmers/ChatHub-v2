@@ -7,9 +7,11 @@
 #include "file_receiver.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <netinet/in.h>
 #include <thread>
+#include <unordered_set>
 
 class ReceiverManager {
   public:
@@ -29,12 +31,14 @@ class ReceiverManager {
     std::atomic<bool> running_;
     std::thread       recvThread_, recvBroadcastThread_;
 
-    std::unordered_map<std::string, uint32_t> lastProcessedId_;
-    std::mutex                                lastIdMtx_;
+    std::unordered_map<std::string, std::unordered_set<uint32_t>> processedId_;
+    std::mutex                                idMtx_;
 
     void receiveLoop();
     void receiveBroadcastLoop();
     void handle(const Message& msg);
+
+    bool isDuplicateMessage(uint32_t id, const sockaddr_in& addr);
 
     std::function<void(const std::string&, const std::string&)> messageHandler_;
 

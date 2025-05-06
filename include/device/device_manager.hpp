@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 struct DeviceInfo {
@@ -16,6 +17,7 @@ struct DeviceInfo {
     int         port;
     sockaddr_in addr;
     std::time_t last_alive;
+    std::unordered_set<int> received_ids;
 };
 
 class DeviceManager {

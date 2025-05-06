@@ -57,7 +57,7 @@ void DeviceManager::addOrUpdate(const std::string& name, const sockaddr_in& from
 
     std::string key = std::string(ipstr) + ":" + std::to_string(port);
 
-    this->devices_[name]      = DeviceInfo{name, ipstr, port, from, now};
+    this->devices_[name]      = DeviceInfo{name, ipstr, port, from, now, {}};
     this->devicesByAddr_[key] = name;
 }
 
@@ -78,7 +78,6 @@ std::vector<DeviceInfo> DeviceManager::listDevices() const {
 }
 
 std::string DeviceManager::getNameByAddr(const sockaddr_in& addr) {
-    char ipstr[INET_ADDRSTRLEN];
     std::string key = peerKey(addr);
 
     auto it = devicesByAddr_.find(key);
